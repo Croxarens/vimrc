@@ -1,4 +1,14 @@
-![Vim Ruchee](https://raw.github.com/ruchee/vimrc/master/macvim.jpg "Vim Ruchee")
+This guy ![Ruchee](https://github.com/ruchee) did an awesome work with all the settings and plugins for VIM. I just forked his repo and edited what I needed for my setups.
+
+I also added some other plugin :
+    * vim-gitgutter
+    * vim-fugitive
+
+I use [powerline](https://github.com/powerline/powerline/tree/master), so you'll also find some settings related to it.
+
+---
+### Screenshot
+![Vim Ruchee](https://raw.github.com/Croxarens/vimrc/master/macvim.jpg "Vim Ruchee")
 
 ----
 #### macOS
