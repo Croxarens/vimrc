@@ -1,6 +1,6 @@
 " -----------------  Author: Ruchee
 " -----------------   Email: my@ruchee.com
-" -----------------    Date: 2017-08-06 13:42:15
+" -----------------    Date: 2017-10-17 15:24:46
 " -----------------   https://github.com/ruchee/vimrc
 
 
@@ -57,7 +57,9 @@
 " \ruby                      一键切换到 Ruby       语法高亮
 " \eruby                     一键切换到 eRuby      语法高亮
 " \cf                        一键切换到 Coffee     语法高亮
+" \ts                        一键切换到 TypeScript 语法高亮
 " \js                        一键切换到 JavaScript 语法高亮
+" \jsx                       一键切换到 JSX        语法高亮
 " \css                       一键切换到 CSS        语法高亮
 " \html                      一键切换到 HTML       语法高亮
 
@@ -101,6 +103,7 @@
 "
 " Ctrl + P                   在当前工程目录搜索文件 [Normal 模式] [ctrlp 插件] [此插件功能颇多，具体可查看其文档]
 " \ss                        在当前所在目录搜索单词 [Normal 模式] [ack 插件]
+" \ff                        搜索当前文件中的类、方法、函数名 [Normal 模式] [ctrlp-funky 插件]
 "
 " ---------- 跳转命令 ----------
 "
@@ -164,8 +167,13 @@
 "
 " ---------- 文本比较 ----------
 "
-" dp                         将当前文件所在差异行替换到对比文件 [give]
-" do                         将对比文件所在差异行替换到当前文件 [get]
+" dp                         将当前文件所在差异行替换到对比文件 [保留当前文件的改动]
+" do                         将对比文件所在差异行替换到当前文件 [保留对比文件的改动]
+
+" \ml                        保留本分支的改动 [git mergetool -t vimdiff 时可用]
+" \mr                        保留它分支的改动 [git mergetool -t vimdiff 时可用]
+" \mb                        保留基分支的改动 [git mergetool -t vimdiff 时可用]
+" \mu                        刷新比较结果     [git mergetool -t vimdiff 时可用]
 "
 " ---------- 便捷操作 ----------
 "
@@ -185,6 +193,11 @@
 " ]z                         到当前打开的折叠的末尾处
 " zj                         向下移动到后一个折叠的开始处
 " zk                         向上移动到前一个折叠的结束处
+"
+" ---------- 服务器文件传输 ----------
+"
+" \uu                        向服务器上传文件 [sync 插件]
+" \dd                        从服务器下载文件 [sync 插件]
 "
 " ---------- Vimwiki [Vim 中的 wiki 系统] ----------------
 "
@@ -232,12 +245,17 @@ au FileType php,python set tabstop=4
 au FileType blade set shiftwidth=2
 au FileType blade set tabstop=2
 
+" 配置 Rust 支持 [需要使用 cargo 安装 racer 和 rustfmt 才能正常工作，RUST_SRC_PATH 需要自己下载 Rust 源码并指定好正确的路径]
+let $RUST_SRC_PATH                 = $HOME.'/code/data/sources/languages/rust/src'
+let g:racer_experimental_completer = 1  " 补全时显示完整的函数定义
+let g:rustfmt_autosave             = 1  " 保存时自动格式化代码
+
 " 修正 Go 语言的部分快捷键 [需要安装一堆工具才能正常工作，可在 Vim 里面执行 :GoInstallBinaries 命令完成安装]
 au FileType go nmap <c-[> :GoInfo<cr>
 au FileType go nmap <c-]> :GoDef<cr>
 au FileType go nmap <c-t> <c-o>
 
-" 根据后缀名指定文件类型
+" Specify the file type based on the suffix name
 au BufRead,BufNewFile *.h        set ft=c
 au BufRead,BufNewFile *.i        set ft=c
 au BufRead,BufNewFile *.m        set ft=objc
@@ -313,8 +331,7 @@ filetype indent on           " 针对不同的文件类型采用不同的缩进�
 filetype plugin on           " 针对不同的文件类型加载对应的插件
 filetype plugin indent on    " 启用自动补全
 
-
-" 设置文件编码和文件格式
+" Set the file encoding and file format
 set fenc=utf-8
 set encoding=utf-8
 set fileencodings=utf-8,gbk,cp936,latin-1
@@ -347,8 +364,15 @@ if g:isGUI
 endif
 
 
+" 修复在 Mac 自带终端中使用时，有可能会在文件头部出现随机字符串的问题
+if !empty($TERM_PROGRAM) && $TERM_PROGRAM == 'Apple_Terminal'
+  set t_SH=
+endif
+
+
 " 加载 pathogen 插件管理器
 execute pathogen#infect()
+execute pathogen#helptags()
 
 
 " 修正部分语言的关键字列表
@@ -359,7 +383,7 @@ au FileType css,scss,less set iskeyword=@,48-57,_,192-255,#
 au FileType nginx         set iskeyword=@,48-57,_,192-255
 
 
-" 针对部分语言添加字典补全
+" Add complements dictionary for some languages
 au FileType c      call AddCDict()
 au FileType cpp    call AddCPPDict()
 au FileType rust   call AddRustDict()
@@ -564,9 +588,12 @@ let g:haskell_enable_pattern_synonyms     = 1  " 高亮 Haskell pattern
 let g:haskell_enable_typeroles            = 1  " 高亮 Haskell type roles
 let g:haskell_enable_static_pointers      = 1  " 高亮 Haskell static
 
-let g:pymode_python                       = 'python3'  " 使用 Python3 语法检查      [Python-Mode]
-let g:pymode_rope_goto_definition_bind    = '<C-]>'    " 自定义跳转快捷键           [Python-Mode]
-let g:pymode_options_colorcolumn          = 0          " 关闭右侧的单行字符长度标尺 [Python-Mode]
+if has('python3')
+  command! -nargs=1 Py py3 <args>
+else
+  command! -nargs=1 Py py <args>
+endif
+let g:pymode_python = 'python3'                " 使用 Python3 语法检查 [Python-Mode]
 
 " 高亮 JS/TS/Coffee/Dart 中模版字符串的内容 [默认高亮为 HTML] [js-pretty-template 插件]
 " 可用形如 :JsPreTmpl xml 的命令临时修改模版字符串的高亮语法
@@ -589,7 +616,7 @@ let g:bufExplorerSortBy = 'name'               " 按文件名排序
 " TagBar              tags 标签浏览器
 let g:tagbar_sort = 0                          " 关闭排序     [也就是按标签本身在文件中的位置排序]
 let g:tagbar_show_linenumbers = -1             " 显示行号     [使用全局关于行号的默认配置]
-let g:tagbar_autopreview = 1                   " 开启自动预览 [随着光标在标签上的移动，顶部会出现一个实时的预览窗口]
+let g:tagbar_autopreview = 0                   " 关闭自动预览 [随着光标在标签上的移动，顶部会出现一个实时的预览窗口，需要时可以修改此处开启]
 
 " snipMate            Tab 智能补全
 let g:snips_author                              = 'Ruchee'
@@ -668,7 +695,11 @@ let g:ctrlp_user_command  = {
       \ 'ignore': 1
       \ }                                      " 特定项目使用 types 中指定的命令，非特定项目使用 fallback 中的命令，且启用自定义的忽略文件列表
 
-" ack                 单词搜索                   需要配合 the_silver_searcher 使用
+" ctrlp-funky         函数搜索
+let g:ctrlp_funky_matchtype        = 'path'    " 命中字符即时高亮
+let g:ctrlp_funky_syntax_highlight = 1         " 开启语法高亮
+
+" ack                 单词搜索                   需要安装 the_silver_searcher 配合使用
 let g:ackprg = 'ag --nogroup --nocolor --column'
 
 " indentLine          显示对齐线
@@ -714,12 +745,18 @@ let g:syntastic_c_compiler_options           = '-Wall -std=c11'
 let g:syntastic_cpp_compiler_options         = '-Wall -std=c++14'
 let g:syntastic_swift_checkers               = ['swiftpm', 'swiftlint']
 let g:syntastic_rust_checkers                = ['rustc']
+let g:syntastic_nim_checkers                 = ['nim']
+let g:syntastic_enable_nim_checker           = 1
+let g:syntastic_crystal_checkers             = ['crystal']
+let g:syntastic_enable_crystal_checker       = 1
+let g:syntastic_kotlin_checkers              = ['kotlinc']
+let g:syntastic_enable_kotlin_checker        = 1
 let g:syntastic_elixir_checkers              = ['elixir']
 let g:syntastic_enable_elixir_checker        = 1
 let g:syntastic_perl_checkers                = ['perl']
 let g:syntastic_enable_perl_checker          = 1
-let g:syntastic_perl6_checkers               = ['perl6latest']
-let g:syntastic_enable_perl6latest_checker   = 1
+let g:syntastic_perl6_checkers               = ['perl6']
+let g:syntastic_enable_perl6_checker         = 1
 let g:syntastic_python_python_exec           = 'python3'
 let g:syntastic_eruby_ruby_quiet_messages    = {'regex': 'possibly useless use of a variable in void context'}
 let g:syntastic_javascript_checkers          = ['eslint']
@@ -791,7 +828,7 @@ nmap <leader>bb :Tab /=<cr>
 nmap <leader>bn :Tab /
 
 " \nt                 打开/关闭文件树窗口，在左侧栏显示 [NERDTree 插件]
-nmap <leader>nt :NERDTree<cr>
+nmap <leader>nt :NERDTreeToggle<cr>
 
 " \ut                 打开/关闭文档编辑历史窗口，在左侧栏显示 [Undotree 插件]
 nmap <leader>ut :UndotreeToggle<cr>
@@ -823,6 +860,9 @@ nmap <leader>gl :Gitv<cr>
 " \ss                 搜索当前光标下的单词 [ack 插件]
 nmap <leader>ss :Ack! '\b<c-r><c-w>\b'<cr>
 
+" \ff                 搜索当前文件中的类、方法、函数名 [ctrlp-funky 插件]
+nmap <leader>ff :CtrlPFunky<cr>
+
 " \rb                 一键去除全部尾部空白
 imap <leader>rb <esc>:let _s=@/<bar>:%s/\s\+$//e<bar>:let @/=_s<bar>:nohl<cr>
 nmap <leader>rb :let _s=@/<bar>:%s/\s\+$//e<bar>:let @/=_s<bar>:nohl<cr>
@@ -852,6 +892,24 @@ vmap <leader>wa <esc>\ww<esc>:VimwikiAll2HTML<cr>:qa<cr>
 " \ev                 编辑当前所使用的 Vim 配置文件
 nmap <leader>ev <esc>:e $MYVIMRC<cr>
 
+" \uu                 向服务器上传文件 [sync 插件]
+nmap <leader>uu <esc>:w<cr>:call SyncUploadFile()<cr>
+
+" \dd                 从服务器下载文件 [sync 插件]
+nmap <leader>dd <esc>:w<cr>:call SyncDownloadFile()<cr>
+
+" \ml                 保留本分支的改动 [git mergetool -t vimdiff 时可用]
+nmap <leader>ml :diffget LOCAL<cr>
+
+" \mr                 保留它分支的改动 [git mergetool -t vimdiff 时可用]
+nmap <leader>mr :diffget REMOTE<cr>
+
+" \mb                 保留基分支的改动 [git mergetool -t vimdiff 时可用]
+nmap <leader>mb :diffget BASE<cr>
+
+" \mu                 刷新比较结果     [git mergetool -t vimdiff 时可用]
+nmap <leader>mu :diffupdate<cr>
+
 " \got                一键切换到 gohtmltmpl 语法高亮
 imap <leader>got <esc>:se ft=gohtmltmpl<cr>li
 nmap <leader>got <esc>:se ft=gohtmltmpl<cr>
@@ -872,9 +930,17 @@ nmap <leader>eruby <esc>:se ft=eruby<cr>
 imap <leader>cf <esc>:se ft=coffee<cr>li
 nmap <leader>cf <esc>:se ft=coffee<cr>
 
+" \ts                 一键切换到 TypeScript 语法高亮
+imap <leader>ts <esc>:se ft=typescript<cr>li
+nmap <leader>ts <esc>:se ft=typescript<cr>
+
 " \js                 一键切换到 JavaScript 语法高亮
 imap <leader>js <esc>:se ft=javascript<cr>li
 nmap <leader>js <esc>:se ft=javascript<cr>
+
+" \jsx                一键切换到 JSX 语法高亮
+imap <leader>jsx <esc>:se ft=javascript.jsx<cr>li
+nmap <leader>jsx <esc>:se ft=javascript.jsx<cr>
 
 " \css                一键切换到 CSS 语法高亮
 imap <leader>css <esc>:se ft=css<cr>li
@@ -885,7 +951,7 @@ imap <leader>html <esc>:se ft=html<cr>li
 nmap <leader>html <esc>:se ft=html<cr>
 
 
-" ======= 编译 && 运行 && 模板 ======= "
+" ======= 编译 && 运行 ======= "
 
 " 编译并运行
 func! Compile_Run_Code()
@@ -946,6 +1012,8 @@ func! Compile_Run_Code()
     else
       exec '!valac %:t && ./%:r'
     endif
+  elseif &filetype == 'red'
+    exec '!red %:t'
   elseif &filetype == 'java'
     exec '!javac %:t && java %:r'
   elseif &filetype == 'groovy'
@@ -994,6 +1062,8 @@ func! Compile_Run_Code()
     else
       exec '!ghc -o %:r %:t && ./%:r'
     endif
+  elseif &filetype == 'io'
+    exec '!io %:t'
   elseif &filetype == 'lua'
     exec '!lua %:t'
   elseif &filetype == 'perl'
@@ -1026,6 +1096,8 @@ func! Compile_Run_Code()
     exec '!Rscript %:t'
   elseif &filetype == 'sh'
     exec '!bash %:t'
+  elseif &filetype == 'slim'
+    exec '!slimrb -ce %:t > %:r.html.erb'
   elseif &filetype == 'scss'
     exec '!scss %:t > %:r.css'
   elseif &filetype == 'less'
@@ -1048,9 +1120,9 @@ let g:vimwiki_valid_html_tags = 'p,a,img,b,i,s,u,sub,sup,br,hr,div,del,code,red,
 
 let blog = {}
 if g:isWIN
-  let blog.path          = 'D:/Ruchee/Files/mysite/wiki/'
-  let blog.path_html     = 'D:/Ruchee/Files/mysite/html/'
-  let blog.template_path = 'D:/Ruchee/Files/mysite/templates/'
+  let blog.path          = 'D:/Ruchee/mysite/wiki/'
+  let blog.path_html     = 'D:/Ruchee/mysite/html/'
+  let blog.template_path = 'D:/Ruchee/mysite/templates/'
 else
   let blog.path          = '~/mysite/wiki/'
   let blog.path_html     = '~/mysite/html/'
@@ -1073,3 +1145,43 @@ else
     source $HOME/.self.vim
   end
 end
+
+
+
+" Redefine tab as 4 spaces
+" http://stackoverflow.com/a/1878983/1190011
+set tabstop=4
+set softtabstop=0 noexpandtab
+set shiftwidth=4
+set tabstop=8 softtabstop=0 expandtab shiftwidth=4 smarttab
+
+" Keep your cursor centered vertically
+" http://vim.wikia.com/wiki/Keep_your_cursor_centered_vertically_on_the_screen
+set scrolloff=999
+
+" This makes gj/gk move by virtual lines when used without a count,
+" and by physical lines when used with a count.
+" This is perfect in tandem with relative numbers.
+" https://blog.petrzemek.net/2016/04/06/things-about-vim-i-wish-i-knew-earlier/
+noremap <silent> <expr> j (v:count == 0 ? 'gj' : 'j')
+noremap <silent> <expr> k (v:count == 0 ? 'gk' : 'k')
+
+" Disable arrow keys
+" http://mjacobus.github.io/2015/04/17/using-vim-as-a-php-ide.html
+nnoremap <Up> :echomsg "use k"<cr>
+nnoremap <Down> :echomsg "use j"<cr>
+nnoremap <Left> :echomsg "use h"<cr>
+nnoremap <Right> :echomsg "use l"<cr>
+
+" Remapping the tab keys
+nmap <C-Tab> :tabn<CR>
+nmap <C-S-Tab> :tabp<CR>
+nmap <C-t> :tabnew<CR>
+
+" Powerline
+set laststatus=2 " Always display the statusline in all windows
+set showtabline=2 " Always display the tabline, even if there is only one tab
+set noshowmode      " Hide the default mode text (e.g. -- INSERT -- below the statusline)
+set t_Co=256
+let g:powerline_pycmd  = "py3"
+let g:powerline_pyeval = "py3eval"
