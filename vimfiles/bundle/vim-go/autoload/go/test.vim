@@ -33,9 +33,9 @@ function! go#test#Test(bang, compile, ...) abort
 
   if get(g:, 'go_echo_command_info', 1)
     if a:compile
-      echon "vim-go: " | echohl Identifier | echon "compiling tests ..." | echohl None
+      call go#util#EchoProgress("compiling tests ...")
     else
-      echon "vim-go: " | echohl Identifier | echon "testing ..." | echohl None
+      call go#util#EchoProgress("testing...")
     endif
   endif
 
@@ -57,7 +57,7 @@ function! go#test#Test(bang, compile, ...) abort
     if get(g:, 'go_term_enabled', 0)
       let id = go#term#new(a:bang, ["go"] + args)
     else
-      let id = go#jobcontrol#Spawn(a:bang, "test", args)
+      let id = go#jobcontrol#Spawn(a:bang, "test", "GoTest", args)
     endif
 
     return id
@@ -69,7 +69,7 @@ function! go#test#Test(bang, compile, ...) abort
   let command = "go " . join(args, ' ')
   let out = go#tool#ExecuteInDir(command)
 
-  let l:listtype = "quickfix"
+  let l:listtype = go#list#Type("GoTest")
 
   let cd = exists('*haslocaldir') && haslocaldir() ? 'lcd ' : 'cd '
   let dir = getcwd()
@@ -87,15 +87,15 @@ function! go#test#Test(bang, compile, ...) abort
       " failed to parse errors, output the original content
       call go#util#EchoError(out)
     endif
-    echon "vim-go: " | echohl ErrorMsg | echon "[test] FAIL" | echohl None
+    call go#util#EchoError("[test] FAIL")
   else
     call go#list#Clean(l:listtype)
     call go#list#Window(l:listtype)
 
     if a:compile
-      echon "vim-go: " | echohl Function | echon "[test] SUCCESS" | echohl None
+      call go#util#EchoSuccess("[test] SUCCESS")
     else
-      echon "vim-go: " | echohl Function | echon "[test] PASS" | echohl None
+      call go#util#EchoSuccess("[test] PASS")
     endif
   endif
   execute cd . fnameescape(dir)
@@ -172,12 +172,12 @@ function s:test_job(args) abort
     if get(g:, 'go_echo_command_info', 1)
       if a:exitval == 0
         if a:args.compile_test
-          call go#util#EchoSuccess("SUCCESS")
+          call go#util#EchoSuccess("[test] SUCCESS")
         else
-          call go#util#EchoSuccess("PASS")
+          call go#util#EchoSuccess("[test] PASS")
         endif
       else
-        call go#util#EchoError("FAILED")
+        call go#util#EchoError("[test] FAIL")
       endif
     endif
 
@@ -188,7 +188,7 @@ function s:test_job(args) abort
 
     call go#statusline#Update(status_dir, status)
 
-    let l:listtype = go#list#Type("quickfix")
+    let l:listtype = go#list#Type("GoTest")
     if a:exitval == 0
       call go#list#Clean(l:listtype)
       call go#list#Window(l:listtype)
@@ -224,7 +224,7 @@ endfunction
 " a quickfix compatible list of errors. It's intended to be used only for go
 " test output. 
 function! s:show_errors(args, exit_val, messages) abort
-  let l:listtype = go#list#Type("quickfix")
+  let l:listtype = go#list#Type("GoTest")
 
   let cd = exists('*haslocaldir') && haslocaldir() ? 'lcd ' : 'cd '
   try
@@ -237,7 +237,7 @@ function! s:show_errors(args, exit_val, messages) abort
 
   if !len(errors)
     " failed to parse errors, output the original content
-    call go#util#EchoError(join(a:messages, " "))
+    call go#util#EchoError(a:messages)
     call go#util#EchoError(a:args.dir)
     return
   endif

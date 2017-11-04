@@ -54,8 +54,8 @@ function! phpcd#CompletePHP(findstart, base) " {{{
 
 		let [current_namespace, imports] = phpcd#GetCurrentNameSpace()
 
-		if context =~? '^use\s' || context ==? 'use' " {{{
-			" TODO complete use
+		if context =~? '\v^use\s*' " {{{
+			return rpc#request(g:phpcd_channel_id, 'classmap', a:base)
 		endif " }}}
 
 		if context =~ '\(->\|::\)$' " {{{
@@ -109,7 +109,8 @@ endfunction " }}}
 function! phpcd#CompleteGeneral(base, current_namespace, imports) " {{{
 	let base = substitute(a:base, '^\\', '', '')
 	let [pattern, namespace] = phpcd#ExpandClassName(a:base, a:current_namespace, a:imports)
-	return rpc#request(g:phpcd_channel_id, 'info', '', pattern)
+	return rpc#request(g:phpcd_channel_id, 'keyword')
+				\ + rpc#request(g:phpcd_channel_id, 'info', '', pattern)
 endfunction " }}}
 
 function! phpcd#JumpToDefinition(mode) " {{{
@@ -209,6 +210,8 @@ function! phpcd#GetCurrentSymbolWithContext() " {{{
 
 	let current_instruction = phpcd#GetCurrentInstruction(line('.'), max([0, col('.') - 2]), phpbegin)
 	let context = substitute(current_instruction, 'clone ', '', '')
+	let context = substitute(current_instruction, 'yield from', '', '')
+	let context = substitute(current_instruction, 'yield ', '', '')
 	let context = substitute(context, '\s*[$a-zA-Z_0-9\\\x7f-\xff]*$', '', '')
 	let context = substitute(context, '\s\+\([\-:]\)', '\1', '')
 
@@ -536,7 +539,7 @@ function! phpcd#GetCallChainReturnType(classname_candidate, class_candidate_name
 
 	if methodstack[0] =~ '('
 		let method = matchstr(methodstack[0], '\v^\$*\zs[^[(]+\ze')
-		let return_types = rpc#request(g:phpcd_channel_id, 'functype', full_classname, method)
+		let return_types = rpc#request(g:phpcd_channel_id, 'functype', full_classname, method, expand('%:p'))
 	else
 		let prop = matchstr(methodstack[0], '\v^\$*\zs[^[(]+\ze')
 		let return_types = rpc#request(g:phpcd_channel_id, 'proptype', full_classname, prop)
@@ -695,7 +698,7 @@ function! phpcd#GetClassName(start_line, context, current_namespace, imports) " 
 		endwhile " }}}
 	elseif a:context =~? '(\s*new\s\+'.class_name_pattern.'\s*\(([^)]*)\)\?)->' " {{{
 		let classname_candidate = matchstr(a:context, '\cnew\s\+\zs'.class_name_pattern.'\ze')
-		if classname_candidate == 'static' || classname_candidate == 'Static' " {{{
+		if classname_candidate =~? '\vstatic|self' " {{{
 			let i = 1
 			while i < a:start_line
 				let line = getline(a:start_line - i)
@@ -711,7 +714,7 @@ function! phpcd#GetClassName(start_line, context, current_namespace, imports) " 
 		return phpcd#GetCallChainReturnType(classname_candidate, class_candidate_namespace, class_candidate_imports, methodstack) " }}}
 	elseif get(methodstack, 0) =~# function_invocation_pattern " {{{
 		let function_name = matchstr(methodstack[0], '^\s*\zs'.function_name_pattern)
-		let return_types = rpc#request(g:phpcd_channel_id, 'functype', '', function_name)
+		let return_types = rpc#request(g:phpcd_channel_id, 'functype', '', function_name, expand('%:p'))
 		if len(return_types) > 0
 			let return_type = phpcd#SelectOne(return_types)
 			return phpcd#GetCallChainReturnType(return_type, '', class_candidate_imports, methodstack)
@@ -767,7 +770,7 @@ function! phpcd#GetClassName(start_line, context, current_namespace, imports) " 
 			" do in-file lookup of $var = new Class or $var = new [s|S]tatic
 			if line =~# '^\s*'.object.'\s*=\s*new\s\+'.class_name_pattern && !object_is_array " {{{
 				let classname_candidate = matchstr(line, object.'\c\s*=\s*new\s*\zs'.class_name_pattern.'\ze')
-				if classname_candidate == 'static' || classname_candidate == 'Static' " {{{
+				if classname_candidate =~? '\vstatic|self' " {{{
 					let i = 1
 					while i < a:start_line
 						let line = getline(a:start_line - i)
@@ -787,8 +790,8 @@ function! phpcd#GetClassName(start_line, context, current_namespace, imports) " 
 				break
 			endif " }}}
 
-			" do in-file lookup of $var = (new static)
-			if line =~# '^\s*'.object.'\s*=\s*(\s*new\s\+static\s*)' && !object_is_array " {{{
+			" do in-file lookup of $var = (new static|self)
+			if line =~? '^\s*'.object.'\s*=\s*(\s*new\s\+(static\|self)\s*)' && !object_is_array " {{{
 				let classname_candidate = '' " {{{
 				let i = 1
 				while i < a:start_line
@@ -970,6 +973,11 @@ function! phpcd#UpdateIndex() " {{{
 
 	let g:phpcd_need_update = 0
 	let nsuse = rpc#request(g:phpcd_channel_id, 'nsuse', expand('%:p'))
+
+	if !nsuse.class
+		return
+	endif
+
 	let classname = nsuse.namespace . '\' . nsuse.class
 	return rpc#notify(g:phpid_channel_id, 'update', classname)
 endfunction " }}}

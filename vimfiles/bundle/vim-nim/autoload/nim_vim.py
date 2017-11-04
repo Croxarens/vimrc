@@ -1,4 +1,10 @@
-import threading, Queue, subprocess, signal, os
+from sys import version_info
+import threading, subprocess, signal, os, platform, getpass
+
+if version_info[0] == 3:
+    import queue as Queue
+else:
+    import Queue
 
 try:
   import vim
@@ -75,8 +81,6 @@ def nimRestartService(project):
   nimTerminateService(project)
   nimStartService(project)
 
-NimLog = open("/tmp/nim-log.txt", "w")
-
 def nimExecCmd(project, cmd, async = True):
   target = None
   if NimProjects.has_key(project):
@@ -85,9 +89,6 @@ def nimExecCmd(project, cmd, async = True):
     target = nimStartService(project)
   
   result = target.postNimCmd(cmd, async)
-  if result != None:
-    NimLog.write(result)
-    NimLog.flush()
   
   if not async:
     vim.command('let l:py_res = "' + nimVimEscape(result) + '"')

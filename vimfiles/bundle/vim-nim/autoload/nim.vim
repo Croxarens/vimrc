@@ -1,5 +1,5 @@
 let g:nim_log = []
-let s:plugin_path = escape(expand('<sfile>:p:h'), ' \')
+let s:plugin_path = escape(expand('<sfile>:p:h'), '\')
 
 if !exists("g:nim_caas_enabled")
   let g:nim_caas_enabled = 0
@@ -9,12 +9,16 @@ if !executable('nim')
   echoerr "the Nim compiler must be in your system's PATH"
 endif
 
-exe 'pyfile ' . fnameescape(s:plugin_path) . '/nim_vim.py'
+if has("python3")
+  exe 'py3file ' . fnameescape(s:plugin_path) . '/nim_vim.py'
+else
+  exe 'pyfile ' . fnameescape(s:plugin_path) . '/nim_vim.py'
+endif
 
 fun! nim#init()
   let cmd = printf("nim --dump.format:json --verbosity:0 dump %s", s:CurrentNimFile())
   let raw_dumpdata = system(cmd)
-  if !v:shell_error
+  if !v:shell_error && expand("%:e") == "nim"
     let dumpdata = eval(substitute(raw_dumpdata, "\n", "", "g"))
     
     let b:nim_project_root = dumpdata['project_path']
@@ -155,8 +159,13 @@ endf
 if !exists("g:neocomplcache_omni_patterns")
   let g:neocomplcache_omni_patterns = {}
 endif
-
 let g:neocomplcache_omni_patterns['nim'] = '[^. *\t]\.\w*'
+
+if !exists('g:neocomplete#sources#omni#input_patterns')
+  let g:neocomplete#sources#omni#input_patterns = {}
+endif
+let g:neocomplete#sources#omni#input_patterns['nim'] = '[^. *\t]\.\w*'
+
 let g:nim_completion_callbacks = {}
 
 fun! NimAsyncCmdComplete(cmd, output)
